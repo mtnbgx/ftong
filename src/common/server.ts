@@ -5,6 +5,7 @@ import WebSocket from 'ws'
 import { EventEmitter } from 'events'
 import { generateStr, pipe } from './common'
 import path from 'path'
+import { Writable } from 'stream'
 
 const url = "wss://d75mnq.laf.run/__websocket__"
 
@@ -129,8 +130,25 @@ class DataPeer {
                 }
             })
 
+            let stream: Writable
             this.peer.on('data', d => {
-                console.log('peer data', d)
+                if (typeof d === 'string') {
+                    console.log('peer data', d)
+                    try {
+                        const { action, name } = JSON.parse(d)
+                        if (action === 'start') {
+                            stream = fs.createWriteStream(path.join('./tmp', `rec_${name}`))
+                        }
+                        if (action === 'end') {
+                            stream.end()
+                        }
+                    } catch (e) {
+                        console.error('peer data Json fail', e)
+                    }
+                }
+                if (typeof d === 'object') {
+                    stream.write(d)
+                }
             })
 
             this.peer.on('error', d => {
