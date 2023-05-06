@@ -12,11 +12,16 @@ const url = "wss://d75mnq.laf.run/__websocket__"
 export class Server extends EventEmitter {
     wss: WebSocket
     id!: string
+    closed = false
     constructor(id?: string) {
         super()
         if (id) {
             this.id = id
         }
+        this.wss = this.reconnect(id)
+    }
+
+    reconnect(id?: string) {
         const wss = new WebSocket(url)
         wss.onopen = (socket) => {
             console.debug("connected");
@@ -25,10 +30,14 @@ export class Server extends EventEmitter {
             } else {
                 this.send({ query: 'id' })
             }
+            this.heartCheck()
         };
 
         wss.onmessage = (res) => {
             const str = res.data.toString()
+            if (str === 'ping' || str === 'pong') {
+                return
+            }
             // console.debug("message", str);
             try {
                 const data = JSON.parse(str)
@@ -54,9 +63,15 @@ export class Server extends EventEmitter {
 
         wss.onclose = (e) => {
             console.debug("closed");
+            if (this.timer) {
+                clearInterval(this.timer)
+            }
+            if (!this.closed) {
+                this.reconnect()
+            }
         }
-
-        this.wss = wss
+        
+        return wss
     }
 
     send(data: object) {
@@ -84,6 +99,23 @@ export class Server extends EventEmitter {
         return peer.start()
     }
 
+    timer?: NodeJS.Timeout
+    heartCheck() {
+        if (this.timer) {
+            clearInterval(this.timer)
+        }
+        this.timer = setInterval(() => {
+            this.wss.send('ping')
+        }, 30 * 1000)
+    }
+
+    close() {
+        if (this.timer) {
+            clearInterval(this.timer)
+        }
+        this.closed = true
+        this.wss.close()
+    }
 }
 
 
