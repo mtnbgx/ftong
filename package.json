@@ -4,12 +4,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "ts-node src/index.ts"
+    "dev": "ts-node src/index.ts",
+    "bin": "ts-node src/bin/ftong.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "commander": "^10.0.1",
     "simple-peer": "^9.11.1",
     "wrtc": "^0.4.7",
     "ws": "^8.13.0"

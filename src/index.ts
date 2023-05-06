@@ -8,5 +8,7 @@ const s2 = new Server(Id2)
 
 s1.on('connect', (id) => {
     console.log('connect', id)
-    s1.sendFile(Id2, './tmp/test.zip')
+    s1.sendFile(Id2, './tmp/test.zip').then(() => {
+        console.log('发送完成')
+    })
 })
