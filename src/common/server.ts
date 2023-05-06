@@ -68,7 +68,11 @@ export class Server extends EventEmitter {
         this.send({ ...newData, from: data.to, to: data.from })
     }
 
-    sendFile(to: string, filePath?: string) {
+    async sendFile(to: string, filePath: string) {
+        const exist = fs.existsSync(filePath)
+        if (!exist) {
+            throw Error('文件不存在')
+        }
         const no = generateStr()
         this.send({ type: 'auth', to, from: this.id, no })
         const peer = new DataPeer({ id: this.id, to, server: this, initiator: false, filePath, no })

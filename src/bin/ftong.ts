@@ -18,9 +18,16 @@ if (options.send && options.file) {
     const server = new Server(options.id)
     server.on('connect', (id) => {
         console.log('connect', id)
-        server.sendFile(options.to, './tmp/test.zip').then(() => {
-            console.log('发送完成')
-        })
+        server.sendFile(options.to, options.file)
+            .then(() => {
+                console.log('发送完成')
+            })
+            .catch(() => {
+                console.log('发送失败')
+            })
+            .finally(() => {
+                process.exit(0)
+            })
     })
 } else {
     const server = new Server(options.id)
