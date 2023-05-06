@@ -70,11 +70,13 @@ export class Server extends EventEmitter {
     sendFile(to: string, filePath?: string) {
         const no = generateStr()
         this.send({ type: 'auth', to, from: this.id, no })
-        new DataPeer({ id: this.id, to, server: this, initiator: false, filePath, no })
+        const peer = new DataPeer({ id: this.id, to, server: this, initiator: false, filePath, no })
+        return peer.start()
     }
 
     receiveFile(to: string, no: string) {
-        new DataPeer({ id: this.id, to, server: this, initiator: true, no })
+        const peer = new DataPeer({ id: this.id, to, server: this, initiator: true, no })
+        return peer.start()
     }
 
 }
@@ -94,54 +96,70 @@ class DataPeer {
     options: Option
     peer: Peer.Instance
     connected = false
+    fail = false
     constructor(options: Option) {
         this.options = options
-        this.peer = new Peer({ initiator: options.initiator, wrtc: wrtc, objectMode: true })
-        this.peer.on('signal', data => {
-            // 发送消息
-            this.options.server.send({ from: this.options.id, to: this.options.to, no: this.options.no, type: 'signal', data })
-        })
-        this.options.server.on(`signal-${this.options.to}-${this.options.no}`, d => {
-            this.peer.signal(d.data)
-        })
-
-        this.peer.on('connect', () => {
-            console.log('peer connect')
-            this.connected = true
-            if (this.options.filePath) {
-                const readStream = fs.createReadStream(this.options.filePath)
-                const name = path.basename(this.options.filePath)
-                const info = { type: 'file-info', action: 'start', name }
-                this.peer.send(JSON.stringify(info))
-                pipe(readStream, this.peer)
-                readStream.on('end', () => {
-                    info.action = 'end'
-                    this.peer.send(JSON.stringify(info))
-                    this.peer.end()
-                })
-            }
-        })
-
-        this.peer.on('data', d => {
-            console.log('peer data', d)
-        })
-
-        let timer: NodeJS.Timeout
-        this.peer.on('end', () => {
-            console.log('peer end')
-            if (timer) {
-                clearTimeout(timer)
-            }
-            // 移除监听器
-            this.options.server.removeAllListeners(`signal-${this.options.to}`)
-        })
-
-        // 10秒还没连接成功就关闭吧
-        timer = setTimeout(() => {
-            if (!this.connected) {
-                this.peer.end()
-            }
-        }, 10 * 1000)
+        this.peer = new Peer({ initiator: this.options.initiator, wrtc: wrtc, objectMode: true })
     }
 
+    start() {
+        return new Promise((resolve, reject) => {
+            this.peer.on('signal', data => {
+                // 发送消息
+                this.options.server.send({ from: this.options.id, to: this.options.to, no: this.options.no, type: 'signal', data })
+            })
+            this.options.server.on(`signal-${this.options.to}-${this.options.no}`, d => {
+                this.peer.signal(d.data)
+            })
+
+            this.peer.on('connect', () => {
+                console.log('peer connect')
+                this.connected = true
+                if (this.options.filePath) {
+                    const readStream = fs.createReadStream(this.options.filePath)
+                    const name = path.basename(this.options.filePath)
+                    const info = { type: 'file-info', action: 'start', name }
+                    this.peer.send(JSON.stringify(info))
+                    pipe(readStream, this.peer)
+                    readStream.on('end', () => {
+                        info.action = 'end'
+                        this.peer.send(JSON.stringify(info))
+                        this.peer.end()
+                    })
+                }
+            })
+
+            this.peer.on('data', d => {
+                console.log('peer data', d)
+            })
+
+            this.peer.on('error', d => {
+                console.log('peer error', d)
+                this.fail = true
+                reject(false)
+            })
+
+            let timer: NodeJS.Timeout
+            this.peer.on('end', () => {
+                console.log('peer end')
+                if (timer) {
+                    clearTimeout(timer)
+                }
+                if (!this.fail) {
+                    resolve(true)
+                }
+                // 移除监听器
+                this.options.server.removeAllListeners(`signal-${this.options.to}`)
+            })
+
+            // 10秒还没连接成功就关闭吧
+            timer = setTimeout(() => {
+                if (!this.connected) {
+                    this.fail = true
+                    reject(false)
+                    this.peer.end()
+                }
+            }, 10 * 1000)
+        })
+    }
 }
