@@ -1,0 +1,22 @@
+{
+  "name": "ftong",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "ts-node src/index.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "simple-peer": "^9.11.1",
+    "wrtc": "^0.4.7",
+    "ws": "^8.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.16.3",
+    "@types/simple-peer": "^9.11.5",
+    "@types/ws": "^8.5.4"
+  }
+}
