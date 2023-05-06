@@ -3,7 +3,7 @@ import fs from 'fs'
 const wrtc = require('wrtc')
 import WebSocket from 'ws'
 import { EventEmitter } from 'events'
-import { pipe } from './file'
+import { generateStr, pipe } from './common'
 import path from 'path'
 
 const url = "wss://d75mnq.laf.run/__websocket__"
@@ -33,10 +33,10 @@ export class Server extends EventEmitter {
                 const data = JSON.parse(str)
                 if (data.type === 'auth') {
                     //TODO 后面可以加上密码验证
-                    this.receiveFile(data.from)
+                    this.receiveFile(data.from, data.no)
                 }
                 if (data.type === 'signal') {
-                    this.emit(`signal-${data.from}`, data)
+                    this.emit(`signal-${data.from}-${data.no}`, data)
                 }
                 // 未设置id的话使用消息设置
                 if (data.type === 'sys' && data.id) {
@@ -68,12 +68,13 @@ export class Server extends EventEmitter {
     }
 
     sendFile(to: string, filePath?: string) {
-        this.send({ type: 'auth', to, from: this.id })
-        new DataPeer({ id: this.id, to, server: this, initiator: false, filePath })
+        const no = generateStr()
+        this.send({ type: 'auth', to, from: this.id, no })
+        new DataPeer({ id: this.id, to, server: this, initiator: false, filePath, no })
     }
 
-    receiveFile(to: string) {
-        new DataPeer({ id: this.id, to, server: this, initiator: true })
+    receiveFile(to: string, no: string) {
+        new DataPeer({ id: this.id, to, server: this, initiator: true, no })
     }
 
 }
@@ -85,6 +86,8 @@ interface Option {
     to: string
     server: Server
     filePath?: string
+    // 随机字符串 防止并发时消息错乱
+    no: string
 }
 
 class DataPeer {
@@ -96,9 +99,9 @@ class DataPeer {
         this.peer = new Peer({ initiator: options.initiator, wrtc: wrtc, objectMode: true })
         this.peer.on('signal', data => {
             // 发送消息
-            this.options.server.send({ from: this.options.id, to: this.options.to, type: 'signal', data })
+            this.options.server.send({ from: this.options.id, to: this.options.to, no: this.options.no, type: 'signal', data })
         })
-        this.options.server.on(`signal-${this.options.to}`, d => {
+        this.options.server.on(`signal-${this.options.to}-${this.options.no}`, d => {
             this.peer.signal(d.data)
         })
 

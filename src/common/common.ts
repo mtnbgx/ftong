@@ -12,3 +12,7 @@ export function pipe(source: Readable, dest: any) {
     dest.emit('pipe', source);
     return dest;
 };
+
+export function generateStr() {
+    return Math.random().toString(36).substring(2, 15);
+}
