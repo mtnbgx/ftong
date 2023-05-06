@@ -3,7 +3,6 @@ import fs from 'fs'
 const wrtc = require('wrtc')
 import WebSocket from 'ws'
 import { EventEmitter } from 'events'
-import { event } from './event'
 import { pipe } from './file'
 import path from 'path'
 
@@ -37,7 +36,7 @@ export class Server extends EventEmitter {
                     this.receiveFile(data.from)
                 }
                 if (data.type === 'signal') {
-                    event.emit(`signal-${data.from}`, data)
+                    this.emit(`signal-${data.from}`, data)
                 }
                 // 未设置id的话使用消息设置
                 if (data.type === 'sys' && data.id) {
@@ -99,7 +98,7 @@ class DataPeer {
             // 发送消息
             this.options.server.send({ from: this.options.id, to: this.options.to, type: 'signal', data })
         })
-        event.on(`signal-${this.options.to}`, d => {
+        this.options.server.on(`signal-${this.options.to}`, d => {
             this.peer.signal(d.data)
         })
 
@@ -131,7 +130,7 @@ class DataPeer {
                 clearTimeout(timer)
             }
             // 移除监听器
-            event.removeAllListeners(`signal-${this.options.to}`)
+            this.options.server.removeAllListeners(`signal-${this.options.to}`)
         })
 
         // 10秒还没连接成功就关闭吧
