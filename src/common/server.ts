@@ -67,10 +67,10 @@ export class Server extends EventEmitter {
                 clearInterval(this.timer)
             }
             if (!this.closed) {
-                this.reconnect()
+                this.wss = this.reconnect()
             }
         }
-        
+
         return wss
     }
 

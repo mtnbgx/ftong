@@ -7,6 +7,9 @@
     "dev": "ts-node src/index.ts",
     "bin": "ts-node src/bin/ftong.ts"
   },
+  "bin": {
+    "ftong": "dist/bin/ftong.js"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
