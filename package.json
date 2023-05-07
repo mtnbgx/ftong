@@ -6,10 +6,14 @@
   "scripts": {
     "dev": "ts-node src/index.ts",
     "bin-dev": "ts-node src/bin/ftong.ts",
-    "bin":"node dist/bin/ftong.js"
+    "bin": "node dist/bin/ftong.js",
+    "build-linux": "pkg . -t node16-linux-x64 -o package/ftong"
   },
-  "bin": {
-    "ftong": "dist/bin/ftong.js"
+  "bin": "dist/bin/ftong.js",
+  "pkg": {
+    "scripts": [
+      "dist/**/*.js"
+    ]
   },
   "keywords": [],
   "author": "",

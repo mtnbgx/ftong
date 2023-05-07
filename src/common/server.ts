@@ -9,16 +9,22 @@ import { Writable } from 'stream'
 
 const url = "wss://d75mnq.laf.run/__websocket__"
 
+interface ServerOptions {
+    receiveDir?: string
+}
+
 export class Server extends EventEmitter {
     wss: WebSocket
     id!: string
+    options: ServerOptions
     closed = false
-    constructor(id?: string) {
+    constructor(id?: string, options?: any) {
         super()
         if (id) {
             this.id = id
         }
         this.wss = this.reconnect(id)
+        this.options = options || {}
     }
 
     reconnect(id?: string) {
@@ -173,7 +179,7 @@ class DataPeer {
                     try {
                         const { action, name } = JSON.parse(d)
                         if (action === 'start') {
-                            stream = fs.createWriteStream(path.join('./tmp', `rec_${name}`))
+                            stream = fs.createWriteStream(path.join(this.options.server.options.receiveDir || './tmp', `rec_${name}`))
                         }
                         if (action === 'end') {
                             stream.end()

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import { Server } from '../common/server';
+import fs from 'fs'
 const program = new Command();
 program
     .option('-s, --send', 'send mode')
@@ -8,6 +9,7 @@ program
     .option('-i, --id <char>', 'id')
     .option('-t, --to <char>', 'to id')
     .option('-f, --file <char>', 'file')
+    .option('-d, --dir <char>', 'dir', './tmp')
     .version('1.0.0')
 
 program.parse(process.argv);
@@ -30,7 +32,10 @@ if (options.send && options.file) {
             })
     })
 } else {
-    const server = new Server(options.id)
+    if (!fs.existsSync(options.dir)) {
+        fs.mkdirSync(options.dir);
+    }
+    const server = new Server(options.id, { receiveDir: options.dir })
     server.on('connect', (id) => {
         console.log('connect', id)
     })

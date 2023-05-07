@@ -18,7 +18,8 @@ WORKDIR /app
 COPY package*.json ./
 # 安装依赖
 RUN npm install --production
-RUN mkdir tmp
+# link
+RUN npm link
 # 复制代码
 COPY --from=build /app/dist ./dist
 # CMD
