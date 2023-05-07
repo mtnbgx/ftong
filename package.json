@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "ts-node src/index.ts",
-    "bin": "ts-node src/bin/ftong.ts"
+    "bin-dev": "ts-node src/bin/ftong.ts",
+    "bin":"node dist/bin/ftong.js"
   },
   "bin": {
     "ftong": "dist/bin/ftong.js"
@@ -22,6 +23,7 @@
   "devDependencies": {
     "@types/node": "^18.16.3",
     "@types/simple-peer": "^9.11.5",
-    "@types/ws": "^8.5.4"
+    "@types/ws": "^8.5.4",
+    "ts-node": "^10.9.1"
   }
 }

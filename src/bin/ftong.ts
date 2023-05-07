@@ -31,4 +31,7 @@ if (options.send && options.file) {
     })
 } else {
     const server = new Server(options.id)
+    server.on('connect', (id) => {
+        console.log('connect', id)
+    })
 }
