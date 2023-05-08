@@ -146,9 +146,13 @@ export class Server extends EventEmitter {
         return peer.start()
     }
 
-    receiveFile(to: string, no: string) {
-        const peer = new DataPeer({ id: this.id, to, server: this, initiator: true, no })
-        return peer.start()
+    async receiveFile(to: string, no: string) {
+        try {
+            const peer = new DataPeer({ id: this.id, to, server: this, initiator: true, no })
+            return await peer.start()
+        } catch (e) {
+            console.error(e)
+        }
     }
 }
 
