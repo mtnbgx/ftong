@@ -14,12 +14,12 @@ program
 
 program.parse(process.argv);
 const options = program.opts();
-console.log(options)
+console.log('argv is %o', options)
 
 if (options.send && options.file) {
     const server = new Server(options.id)
     server.on('connect', (id) => {
-        console.log('connect', id)
+        console.log('connect id is %s', id)
         server.sendFile(options.to, options.file)
             .then(() => {
                 console.log('发送完成')
@@ -37,6 +37,6 @@ if (options.send && options.file) {
     }
     const server = new Server(options.id, { receiveDir: options.dir })
     server.on('connect', (id) => {
-        console.log('connect', id)
+        console.log('connect id is %s', id)
     })
 }

@@ -30,7 +30,7 @@ export class Server extends EventEmitter {
     reconnect(id?: string) {
         const wss = new WebSocket(url)
         wss.onopen = (socket) => {
-            console.debug("connected");
+            console.debug("ws connected");
             if (id) {
                 this.send({ id })
             } else {
@@ -44,7 +44,6 @@ export class Server extends EventEmitter {
             if (str === 'ping' || str === 'pong') {
                 return
             }
-            // console.debug("message", str);
             try {
                 const data = JSON.parse(str)
                 if (data.type === 'auth') {
@@ -175,10 +174,10 @@ class DataPeer {
             let stream: Writable
             this.peer.on('data', d => {
                 if (typeof d === 'string') {
-                    console.log('peer data', d)
                     try {
                         const { action, name } = JSON.parse(d)
                         if (action === 'start') {
+                            console.log('The received file name is %s', name)
                             stream = fs.createWriteStream(path.join(this.options.server.options.receiveDir || './tmp', `rec_${name}`))
                         }
                         if (action === 'end') {

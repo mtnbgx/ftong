@@ -7,8 +7,8 @@
     "dev": "ts-node src/index.ts",
     "bin-dev": "ts-node src/bin/ftong.ts",
     "bin": "node dist/bin/ftong.js",
-    "build-linux": "pkg . -t node16-linux-x64 -o package/ftong",
-    "build-win": "pkg . -t node16-win-x64 -o package/ftong"
+    "build-linux": "pkg . -t node16-linux-x64 -o package/ftong-linux-x64",
+    "build-win": "pkg . -t node16-win-x64 -o package/ftong-win-x64"
   },
   "bin": "dist/bin/ftong.js",
   "pkg": {
