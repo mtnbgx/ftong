@@ -41,3 +41,15 @@ npx tsc
 npm link
 ftong -r
 ```
+
+## 服务端部署
+
+这里感谢laf免费提供的云函数
+
+### 服务端源码
+> server/laf
+
+### 相关引用
+- [Laf文档](https://doc.laf.run/guide/function/)
+
+- [Laf的Websocket](https://doc.laf.run/guide/function/websocket.html)
