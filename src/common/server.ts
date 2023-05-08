@@ -3,7 +3,7 @@ import fs from 'fs'
 const wrtc = require('wrtc')
 import WebSocket from 'ws'
 import { EventEmitter } from 'events'
-import { generateStr, pipe } from './common'
+import { generateStr, md5, pipe } from './common'
 import path from 'path'
 import { Writable } from 'stream'
 
@@ -11,6 +11,7 @@ const url = "wss://d75mnq.laf.run/__websocket__"
 
 interface ServerOptions {
     receiveDir?: string
+    password?: string
 }
 
 export class Server extends EventEmitter {
@@ -18,7 +19,7 @@ export class Server extends EventEmitter {
     id!: string
     options: ServerOptions
     closed = false
-    constructor(id?: string, options?: any) {
+    constructor(id?: string, options?: ServerOptions) {
         super()
         if (id) {
             this.id = id
@@ -47,8 +48,12 @@ export class Server extends EventEmitter {
             try {
                 const data = JSON.parse(str)
                 if (data.type === 'auth') {
-                    //TODO 后面可以加上密码验证
-                    this.receiveFile(data.from, data.no)
+                    const isPasswordValid = !this.options.password || md5(this.options.password) === data.password;
+                    if (isPasswordValid) {
+                        this.receiveFile(data.from, data.no);
+                    } else {
+                        console.log('用户密码验证失败', data.from);
+                    }
                 }
                 if (data.type === 'signal') {
                     this.emit(`signal-${data.from}-${data.no}`, data)
@@ -94,7 +99,8 @@ export class Server extends EventEmitter {
             throw Error('文件不存在')
         }
         const no = generateStr()
-        this.send({ type: 'auth', to, from: this.id, no })
+        const password = this.options.password ? md5(this.options.password) : ''
+        this.send({ type: 'auth', to, from: this.id, no, password })
         const peer = new DataPeer({ id: this.id, to, server: this, initiator: false, filePath, no })
         return peer.start()
     }

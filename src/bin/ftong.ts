@@ -9,6 +9,7 @@ program
     .option('-i, --id <char>', 'id')
     .option('-t, --to <char>', 'to id')
     .option('-f, --file <char>', 'file')
+    .option('-p, --password <char>', 'password')
     .option('-d, --dir <char>', 'dir', './tmp')
     .version('1.0.0')
 
@@ -17,7 +18,7 @@ const options = program.opts();
 console.log('argv is %o', options)
 
 if (options.send && options.file) {
-    const server = new Server(options.id)
+    const server = new Server(options.id, { password: options.password })
     server.on('connect', (id) => {
         console.log('connect id is %s', id)
         server.sendFile(options.to, options.file)
@@ -35,7 +36,7 @@ if (options.send && options.file) {
     if (!fs.existsSync(options.dir)) {
         fs.mkdirSync(options.dir);
     }
-    const server = new Server(options.id, { receiveDir: options.dir })
+    const server = new Server(options.id, { receiveDir: options.dir, password: options.password })
     server.on('connect', (id) => {
         console.log('connect id is %s', id)
     })
