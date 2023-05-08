@@ -214,7 +214,7 @@ class DataPeer {
                     resolve(true)
                 }
                 // 移除监听器
-                this.options.server.removeAllListeners(`signal-${this.options.to}`)
+                this.options.server.removeAllListeners(`signal-${this.options.to}-${this.options.no}`)
             })
 
             // 10秒还没连接成功就关闭吧
