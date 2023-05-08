@@ -15,77 +15,118 @@ interface ServerOptions {
 }
 
 export class Server extends EventEmitter {
-    wss: WebSocket
+    ws!: WebSocket | null
     id!: string
     options: ServerOptions
     closed = false
+    heartbeatTimeout: NodeJS.Timeout | null = null;
     constructor(id?: string, options?: ServerOptions) {
         super()
         if (id) {
             this.id = id
         }
-        this.wss = this.reconnect(id)
         this.options = options || {}
+        this.connect()
     }
 
-    reconnect(id?: string) {
-        const wss = new WebSocket(url)
-        wss.onopen = (socket) => {
-            console.debug("ws connected");
-            if (id) {
-                this.send({ id })
-            } else {
-                this.send({ query: 'id' })
-            }
-            this.heartCheck()
-        };
+    private connect() {
+        const ws = new WebSocket(url)
+        ws.onopen = this.onOpen.bind(this);
+        ws.onmessage = this.onMessage.bind(this);
+        ws.onclose = this.onClose.bind(this);
+        ws.onerror = this.onError.bind(this);
+        this.ws = ws
+    }
 
-        wss.onmessage = (res) => {
-            const str = res.data.toString()
-            if (str === 'ping' || str === 'pong') {
-                return
-            }
-            try {
-                const data = JSON.parse(str)
-                if (data.type === 'auth') {
-                    const isPasswordValid = !this.options.password || md5(this.options.password) === data.password;
-                    if (isPasswordValid) {
-                        this.receiveFile(data.from, data.no);
-                    } else {
-                        console.log('用户密码验证失败', data.from);
-                    }
-                }
-                if (data.type === 'signal') {
-                    this.emit(`signal-${data.from}-${data.no}`, data)
-                }
-                // 未设置id的话使用消息设置
-                if (data.type === 'sys' && data.id) {
-                    this.id = data.id
-                    this.emit('connect', data.id)
-                }
-                if (data.type === 'err') {
-                    console.error('err', data)
-                }
-            } catch (e) {
-
-            }
-        };
-
-        wss.onclose = (e) => {
-            console.debug("closed");
-            if (this.timer) {
-                clearInterval(this.timer)
-            }
-            if (!this.closed) {
-                this.wss = this.reconnect()
-            }
+    private onOpen() {
+        console.debug("ws connected");
+        if (this.id) {
+            this.send({ id: this.id })
+        } else {
+            this.send({ query: 'id' })
         }
+        this.startHeartbeat();
+    }
 
-        return wss
+    private onMessage(res: WebSocket.MessageEvent) {
+        const str = res.data.toString()
+        if (str === 'ping' || str === 'pong') {
+            return
+        }
+        try {
+            const data = JSON.parse(str)
+            if (data.type === 'auth') {
+                const isPasswordValid = !this.options.password || md5(this.options.password) === data.password;
+                if (isPasswordValid) {
+                    this.receiveFile(data.from, data.no);
+                } else {
+                    console.log('用户密码验证失败', data.from);
+                }
+            }
+            if (data.type === 'signal') {
+                this.emit(`signal-${data.from}-${data.no}`, data)
+            }
+            // 未设置id的话使用消息设置
+            if (data.type === 'sys' && data.id) {
+                this.id = data.id
+                this.emit('connect', data.id)
+            }
+            if (data.type === 'err') {
+                console.error('err', data)
+            }
+        } catch (e) {
+
+        }
+    }
+
+    private onClose(event: WebSocket.CloseEvent) {
+        console.log('WebSocket disconnected:', event.code, event.reason);
+        this.stopHeartbeat();
+        this.reconnect();
+    }
+
+    private onError(event: WebSocket.ErrorEvent) {
+        console.log('WebSocket error:', event);
+    }
+
+    private reconnect() {
+        if (this.closed) {
+            return
+        }
+        setTimeout(() => {
+            this.connect();
+        }, 2000);
+    }
+
+    close() {
+        if (this.ws) {
+            this.closed = true
+            this.stopHeartbeat();
+            this.ws.close();
+            this.ws = null
+            console.log('WebSocket closed');
+        }
+    }
+
+    private startHeartbeat() {
+        this.heartbeatTimeout = setInterval(() => {
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                this.ws.send('ping');
+            }
+        }, 30 * 1000);
+    }
+
+    private stopHeartbeat() {
+        if (this.heartbeatTimeout) {
+            clearInterval(this.heartbeatTimeout);
+            this.heartbeatTimeout = null;
+        }
     }
 
     send(data: object) {
-        this.wss.send(JSON.stringify(data))
+        if (this.ws) {
+            this.ws.send(JSON.stringify(data))
+        }
     }
 
     // 回复
@@ -108,24 +149,6 @@ export class Server extends EventEmitter {
     receiveFile(to: string, no: string) {
         const peer = new DataPeer({ id: this.id, to, server: this, initiator: true, no })
         return peer.start()
-    }
-
-    timer?: NodeJS.Timeout
-    heartCheck() {
-        if (this.timer) {
-            clearInterval(this.timer)
-        }
-        this.timer = setInterval(() => {
-            this.wss.send('ping')
-        }, 30 * 1000)
-    }
-
-    close() {
-        if (this.timer) {
-            clearInterval(this.timer)
-        }
-        this.closed = true
-        this.wss.close()
     }
 }
 
@@ -150,6 +173,10 @@ class DataPeer {
         this.peer = new Peer({ initiator: this.options.initiator, wrtc: wrtc, objectMode: true })
     }
 
+    send(obj: object) {
+        this.peer.send(JSON.stringify(obj))
+    }
+
     start() {
         return new Promise((resolve, reject) => {
             this.peer.on('signal', data => {
@@ -167,17 +194,17 @@ class DataPeer {
                     const readStream = fs.createReadStream(this.options.filePath)
                     const name = path.basename(this.options.filePath)
                     const info = { type: 'file-info', action: 'start', name }
-                    this.peer.send(JSON.stringify(info))
+                    this.send(info)
                     pipe(readStream, this.peer)
                     readStream.on('end', () => {
                         info.action = 'end'
-                        this.peer.send(JSON.stringify(info))
+                        this.send(info)
                         this.peer.end()
                     })
                 }
             })
 
-            let stream: Writable
+            let stream: Writable | null
             this.peer.on('data', d => {
                 if (typeof d === 'string') {
                     try {
@@ -187,21 +214,21 @@ class DataPeer {
                             stream = fs.createWriteStream(path.join(this.options.server.options.receiveDir || './tmp', `rec_${name}`))
                         }
                         if (action === 'end') {
-                            stream.end()
+                            stream?.end()
+                            stream = null
                         }
                     } catch (e) {
                         console.error('peer data Json fail', e)
                     }
                 }
                 if (typeof d === 'object') {
-                    stream.write(d)
+                    stream?.write(d)
                 }
             })
 
             this.peer.on('error', d => {
                 console.log('peer error', d)
                 this.fail = true
-                reject(false)
             })
 
             let timer: NodeJS.Timeout
@@ -210,18 +237,24 @@ class DataPeer {
                 if (timer) {
                     clearTimeout(timer)
                 }
-                if (!this.fail) {
-                    resolve(true)
+                if (stream) {
+                    stream.end()
                 }
                 // 移除监听器
                 this.options.server.removeAllListeners(`signal-${this.options.to}-${this.options.no}`)
+                if (!this.fail) {
+                    resolve(true)
+                } else {
+                    reject(false)
+                }
+                //@ts-ignore
+                this.peer = null
             })
 
             // 10秒还没连接成功就关闭吧
             timer = setTimeout(() => {
                 if (!this.connected) {
                     this.fail = true
-                    reject(false)
                     this.peer.end()
                 }
             }, 10 * 1000)

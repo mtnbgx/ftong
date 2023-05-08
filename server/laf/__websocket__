@@ -1,0 +1,86 @@
+import cloud from '@lafjs/cloud'
+
+export async function main(ctx: FunctionContext) {
+  // 初始化 websocket user Map 列表
+  // 也可用数据库保存，本示例代码用的 Laf 云函数的全局缓存
+  let wsMap = cloud.shared.get("wsMap") // 获取 wsMap
+  if (!wsMap) {
+    wsMap = new Map()
+    cloud.shared.set("wsMap", wsMap) // 设置 wsMap
+  }
+  // websocket 连接成功
+  if (ctx.method === "WebSocket:connection") {
+    const userId = generateUserId()
+    wsMap = cloud.shared.get("wsMap") // 获取 wsMap
+    wsMap.set(userId, ctx.socket);
+    cloud.shared.set("wsMap", wsMap) // 设置 wsMap
+    // ctx.socket.send(JSON.stringify({ type: 'sys', id: userId }));
+  }
+
+  // websocket 消息事件
+  if (ctx.method === "WebSocket:message") {
+    const { data } = ctx.params;
+    if (data === 'ping') {
+      ctx.socket.send('pong');
+      return
+    }
+    if (data === 'pong') {
+      return
+    }
+    try {
+      const userId = getKeyByValue(wsMap, ctx.socket);
+      const body = JSON.parse(data)
+      // 判断from to
+      if (body.to && body.from === userId) {
+        const socket = wsMap.get(body.to)
+        if (socket) {
+          socket.send(data)
+        }
+        return
+      }
+      if (body.id) {
+        // 以下是更换id方法
+        const exist = wsMap.get(body.id)
+        // 不存在就更换id把
+        if (!exist) {
+          wsMap.set(body.id, ctx.socket)
+          wsMap.delete(userId);
+          ctx.socket.send(JSON.stringify({ type: 'sys', id: body.id }));
+        } else {
+          ctx.socket.send(JSON.stringify({ type: 'err', msg: 'id冲突' }));
+          ctx.socket.close()
+        }
+        return
+      }
+      if (body.query) {
+        const userId = getKeyByValue(wsMap, ctx.socket);
+        ctx.socket.send(JSON.stringify({ type: 'sys', id: userId }));
+        return
+      }
+    } catch (e) {
+      console.error("send to err：", e.message);
+    }
+  }
+
+  // websocket 关闭消息
+  if (ctx.method === "WebSocket:close") {
+    wsMap = cloud.shared.get("wsMap") // 获取 wsMap 
+    const userId = getKeyByValue(wsMap, ctx.socket);
+    wsMap.delete(userId);
+    cloud.shared.set("wsMap", wsMap) // 设置 wsMap
+    ctx.socket.send("服务端已接收到关闭事件消息，你的 userID 是：" + userId);
+  }
+}
+// 生成随机用户 ID 
+function generateUserId() {
+  return Math.random().toString(36).substring(2, 15);
+}
+
+// 遍历 userID
+function getKeyByValue(map, value) {
+  for (const [key, val] of map.entries()) {
+    if (val === value) {
+      return key;
+    }
+  }
+}
